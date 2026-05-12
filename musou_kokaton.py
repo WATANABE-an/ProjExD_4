@@ -287,7 +287,7 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE: #スペースキーが押されたとき
                 if event.mod & pg.KMOD_LSHIFT: #発動条件：左Shiftキーを押下しながらスペースキー
-                    beams.add(*NeoBeam(bird, 8).gen_beams(bird))  # Shift+スペースで複数方向にビームを放つ
+                    beams.add(*NeoBeam(bird, 5).gen_beams(bird))  # Shift+スペースで複数方向にビームを放つ
                 else:
                     beams.add(Beam(bird))  # スペースキーでビームを放つ
         screen.blit(bg_img, [0, 0])
