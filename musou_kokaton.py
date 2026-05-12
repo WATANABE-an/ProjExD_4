@@ -258,6 +258,32 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class Life:
+    """
+    残機数に関するクラス
+    """
+    def __init__(self, num:int):
+        """
+        赤色のハートを生成する
+        引数 num：初期残機数
+        """
+        self.num=num
+        self.image=pg.Surface((40,40),pg.SRCALPHA)
+        points = [(16*math.sin(t/100)**3 +20,
+                -(13*math.cos(t/100)-5*math.cos(2*t/100)-2*math.cos(3*t/100)-math.cos(4*t/100)) +20
+                ) for t in range(0, 628) ]
+        pg.draw.polygon(self.image, (255,0,0), points)
+
+
+    def update(self, screen: pg.Surface):
+        """
+        赤色のハートを画面右下に描写する
+        """  
+        x=(screen.get_width()-50)-20
+        y=(screen.get_height()-50)-20
+        for i in range(self.num):
+            draw_x=x-(i*self.image.get_width())
+            screen.blit(self.image,(draw_x,y))
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -270,6 +296,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    life = Life(3)
 
     tmr = 0
     clock = pg.time.Clock()
@@ -298,17 +325,23 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
+        
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
-            if bird.state == "normal":
-                bird.change_img(8, screen)  # こうかとん悲しみエフェクト
-                score.update(screen)
-                pg.display.update()
-                time.sleep(2)
-                return
-            elif bird.state == "invincible":
+            if bird.state == "invincible":
                 exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                 score.value += 1  # 1点アップ
+
+            else:
+                life.num-=1 #　衝突したらライフが一つ減る
+                bird.change_img(8, screen)  # こうかとん悲しみエフェクト
+                score.update(screen)
+                life.update(screen)
+                pg.display.update()
+                time.sleep(2)
+
+                if life.num<1:
+                    return
 
         bird.update(key_lst, screen, score)
         beams.update()
@@ -320,6 +353,7 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        life.update(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
