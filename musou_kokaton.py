@@ -258,6 +258,58 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class Life:
+    """
+    残機数に関するクラス
+    """
+    def __init__(self, num:int):
+        """
+        赤色のハートを生成する
+        引数 num：初期残機数
+        """
+        self.num=num
+        self.image=pg.Surface((40,40),pg.SRCALPHA)
+        points = [(16*math.sin(t/100)**3 +20,
+                -(13*math.cos(t/100)-5*math.cos(2*t/100)-2*math.cos(3*t/100)-math.cos(4*t/100)) +20
+                ) for t in range(0, 628) ]
+        pg.draw.polygon(self.image, (255,0,0), points)
+
+
+    def update(self, screen: pg.Surface):
+        """
+        赤色のハートを画面右下に描写する
+        """  
+        x=(screen.get_width()-50)-20
+        y=(screen.get_height()-50)-20
+        for i in range(self.num):
+            draw_x=x-(i*self.image.get_width())
+            screen.blit(self.image,(draw_x,y))
+
+class Gravity(pg.sprite.Sprite):
+    """
+    重力場に関するクラス
+    """
+    def __init__(self, life: int):
+        """
+        爆弾と敵機を爆発させる重力場を生成する
+        引数 life：爆発時間
+        """
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        pg.draw.rect(self.image, (0, 0, 0), (100, 100, 100, 100))
+        self.image.set_alpha(120)
+        self.rect = self.image.get_rect()
+
+    def update(self, screen: pg.Surface):
+        """
+        爆発時間を1減算して0未満になれば重力場を終了する
+        """
+        screen.blit(self.image, self.rect)
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -270,6 +322,8 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    life = Life(3)
+    gravi = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -280,6 +334,9 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 200:
+                score.value -= 200
+                gravi.add(Gravity(400))
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -298,17 +355,30 @@ def main():
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():  # ビームと衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
+        
 
         for bomb in pg.sprite.spritecollide(bird, bombs, True):  # こうかとんと衝突した爆弾リスト
-            if bird.state == "normal":
-                bird.change_img(8, screen)  # こうかとん悲しみエフェクト
-                score.update(screen)
-                pg.display.update()
-                time.sleep(2)
-                return
-            elif bird.state == "invincible":
+            if bird.state == "invincible":
                 exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                 score.value += 1  # 1点アップ
+            else:
+                life.num-=1 #　衝突したらライフが一つ減る
+                bird.change_img(8, screen)  # こうかとん悲しみエフェクト
+                score.update(screen)
+                life.update(screen)
+                pg.display.update()
+                time.sleep(2)
+
+                if life.num<1:
+                    return
+        
+        for grav in pg.sprite.groupcollide(bombs, gravi, True, False).keys(): #爆弾と当たった重力場リスト
+            exps.add(Explosion(grav, 50))
+            score.value += 1
+
+        for grav in pg.sprite.groupcollide(emys, gravi, True, False).keys(): #敵機と当たった重力場リスト
+            exps.add(Explosion(grav, 50))
+            score.value += 10
 
         bird.update(key_lst, screen, score)
         beams.update()
@@ -317,9 +387,12 @@ def main():
         emys.draw(screen)
         bombs.update()
         bombs.draw(screen)
+        gravi.update(screen)
+        gravi.draw(screen)
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        life.update(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
