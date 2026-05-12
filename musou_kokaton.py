@@ -171,14 +171,14 @@ class Beam(pg.sprite.Sprite):
     """
     ビームに関するクラス
     """
-    def __init__(self, bird: Bird):
+    def __init__(self, bird: Bird, angle0=0):
         """
         ビーム画像Surfaceを生成する
         引数 bird：ビームを放つこうかとん
         """
         super().__init__()
         self.vx, self.vy = bird.dire
-        angle = math.degrees(math.atan2(-self.vy, self.vx))
+        angle = math.degrees(math.atan2(-self.vy, self.vx)) + angle0  # ビームの角度を計算
         self.image = pg.transform.rotozoom(pg.image.load(f"fig/beam.png"), angle, 1.0)
         self.vx = math.cos(math.radians(angle))
         self.vy = -math.sin(math.radians(angle))
@@ -186,6 +186,7 @@ class Beam(pg.sprite.Sprite):
         self.rect.centery = bird.rect.centery+bird.rect.height*self.vy
         self.rect.centerx = bird.rect.centerx+bird.rect.width*self.vx
         self.speed = 10
+        #print(f"angle:{angle}")
 
     def update(self):
         """
@@ -196,6 +197,29 @@ class Beam(pg.sprite.Sprite):
         if check_bound(self.rect) != (True, True):
             self.kill()
 
+class NeoBeam(Beam):
+    """
+    複数方向に放つビームに関するクラス
+    """
+    def __init__(self, bird: Bird, num: int):
+        self.bird = bird
+        self.num = num
+
+    def gen_beams(self, bird: Bird):
+        """
+        ビームを複数方向に放つ
+        引数 bird：ビームを放つこうかとん
+        """
+        beams = []
+        if self.num == 1:
+            angles = [0]
+        else:
+            step = 100 // (self.num - 1)
+            angles = list(range(-50, 51, step)) # ビームの角度を-50度から50度まで等間隔で生成
+        for i in range(self.num):
+            angle0 = angles[i]
+            beams.append(Beam(bird, angle0))
+        return beams
 
 class Explosion(pg.sprite.Sprite):
     """
@@ -280,7 +304,7 @@ class Score:
     def __init__(self):
         self.font = pg.font.Font(None, 50)
         self.color = (0, 0, 255)
-        self.value = 100
+        self.value = 1000
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = 100, HEIGHT-50
@@ -368,7 +392,12 @@ def main():
                     score.value -= 20
                     EMP(emys, bombs, screen)
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                beams.add(Beam(bird))
+                if event.mod & pg.KMOD_LSHIFT: #発動条件：左Shiftキーを押下しながらスペースキー
+                    beams.add(*NeoBeam(bird, 5).gen_beams(bird))  # Shift+スペースで複数方向にビームを放つ
+                else:
+                    beams.add(Beam(bird))  # スペースキーでビームを放つ
+
+                
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 200:
                 score.value -= 200
                 gravi.add(Gravity(400))
